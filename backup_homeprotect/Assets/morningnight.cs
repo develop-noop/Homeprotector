@@ -1,52 +1,72 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI; // UI 관련 기능을 사용하기 위해 추가
+using UnityEngine.UI;
+using UnityEngine.Tilemaps; // Tilemap을 조작하기 위해 추가
 
 public class morningnight : MonoBehaviour
 {
-    public SpriteRenderer sr;
-    public Color day;
-    public Color night;
+    public Camera mainCamera; // 카메라 참조
+    public List<Tilemap> tilemaps; // 여러 개의 타일맵을 저장할 리스트
 
-    [Range(0.01f, 0.2f)]
-    public float transitionTime;
+    public Color dayColor = Color.cyan; // 낮 배경색
+    public Color nightColor = Color.black; // 밤 배경색
+    public Color dayTileColor = Color.white; // 낮 타일맵 색상
+    public Color nightTileColor = new Color(0.5f, 0.5f, 0.5f, 1f); // 연한 밤 타일맵 색상 (어둡게)
+
+    [Range(0.5f, 2.0f)]
+    public float transitionTime = 1.0f; // 변화 속도 (더 부드럽게)
 
     private bool isNight = false;
-    public Button nightButton; //밤으로 바꾸는 버튼
+    public Button nightButton; // 밤으로 바꾸는 버튼
 
     private void Awake()
     {
-        float spritex = sr.sprite.bounds.size.x;
-        float spritey = sr.sprite.bounds.size.y;
-
-        float screenY = Camera.main.orthographicSize * 2;
-        float screenX = screenY / Screen.height * Screen.width;
-
-        transform.localScale = new Vector2(Mathf.Ceil(screenX / spritex), Mathf.Ceil(screenY / spritey));
-
-        sr.color = day; // 처음에는 낮 상태
+        mainCamera.backgroundColor = dayColor; // 처음에는 낮 배경색
+        foreach (var tilemap in tilemaps)
+        {
+            tilemap.color = dayTileColor; // 타일맵도 낮 색상으로 설정
+        }
         nightButton.onClick.AddListener(ChangeNight);
     }
 
     public void ChangeNight()
     {
-        if (!isNight)
+        if (isNight)
         {
-            StartCoroutine(SwapColor(sr.color, night));
-            isNight = true;
+            StartCoroutine(SwapColor(nightColor, dayColor, nightTileColor, dayTileColor)); // 밤 → 낮
         }
+        else
+        {
+            StartCoroutine(SwapColor(dayColor, nightColor, dayTileColor, nightTileColor)); // 낮 → 밤
+        }
+        isNight = !isNight;
     }
 
-    // 색깔 변경
-    IEnumerator SwapColor(Color start, Color end)
+    IEnumerator SwapColor(Color startBg, Color endBg, Color startTile, Color endTile)
     {
         float t = 0;
         while (t < 1)
         {
             t += Time.deltaTime / transitionTime;
-            sr.color = Color.Lerp(start, end, t);
+
+            // 배경색 변경
+            mainCamera.backgroundColor = Color.Lerp(startBg, endBg, t);
+
+            // 모든 타일맵의 색상 변경
+            foreach (var tilemap in tilemaps)
+            {
+                tilemap.color = Color.Lerp(startTile, endTile, t);
+            }
+
             yield return null;
+        }
+
+        // 최종 색상 적용
+        mainCamera.backgroundColor = endBg;
+        foreach (var tilemap in tilemaps)
+        {
+            tilemap.color = endTile;
         }
     }
 }
